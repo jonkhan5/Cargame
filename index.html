@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Dodge Game</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #111;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    overflow: hidden;
+}
+
+h1 {
+    color: white;
+    margin: 12px 0 5px;
+}
+
+#score {
+    color: white;
+    font-size: 22px;
+    margin-bottom: 8px;
+}
+
+#game {
+    position: relative;
+    width: 360px;
+    height: 600px;
+    max-width: 95vw;
+    margin: auto;
+    overflow: hidden;
+    background: #333;
+    border-left: 6px solid white;
+    border-right: 6px solid white;
+}
+
+/* Road lines */
+.line {
+    position: absolute;
+    width: 8px;
+    height: 80px;
+    background: white;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+/* Player */
+#player {
+    position: absolute;
+    width: 55px;
+    height: 90px;
+    bottom: 20px;
+    left: 150px;
+    background: red;
+    border-radius: 12px;
+    z-index: 5;
+}
+
+#player::before {
+    content: "";
+    position: absolute;
+    width: 35px;
+    height: 25px;
+    background: #111;
+    left: 10px;
+    top: 12px;
+    border-radius: 5px;
+}
+
+/* Enemy */
+.enemy {
+    position: absolute;
+    width: 55px;
+    height: 90px;
+    background: yellow;
+    border-radius: 12px;
+    top: -100px;
+}
+
+/* Controls */
+.controls {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+button {
+    width: 100px;
+    height: 55px;
+    font-size: 25px;
+    border: none;
+    border-radius: 12px;
+    background: white;
+}
+
+button:active {
+    transform: scale(0.9);
+}
+
+#startBtn {
+    margin-top: 12px;
+    width: 220px;
+    font-size: 20px;
+}
+
+#gameOver {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+#gameOver h2 {
+    font-size: 38px;
+    margin-bottom: 15px;
+}
+
+#gameOver button {
+    margin-top: 15px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🚗 Car Dodge</h1>
+
+<div id="score">Score: 0</div>
+
+<div id="game">
+
+    <div class="line" style="top:0"></div>
+    <div class="line" style="top:150px"></div>
+    <div class="line" style="top:300px"></div>
+    <div class="line" style="top:450px"></div>
+
+    <div id="player"></div>
+
+    <div id="gameOver">
+        <h2>GAME OVER</h2>
+        <div id="finalScore">Score: 0</div>
+        <button onclick="restartGame()">Play Again</button>
+    </div>
+
+</div>
+
+<div class="controls">
+    <button id="leftBtn">⬅️</button>
+    <button id="rightBtn">➡️</button>
+</div>
+
+<button id="startBtn" onclick="startGame()">START GAME</button>
+
+<script>
+
+const game = document.getElementById("game");
+const player = document.getElementById("player");
+const scoreText = document.getElementById("score");
+const gameOverScreen = document.getElementById("gameOver");
+const finalScore = document.getElementById("finalScore");
+
+let playerX = 150;
+let score = 0;
+let gameRunning = false;
+let speed = 5;
+let enemies = [];
+let animation;
+
+function startGame() {
+
+    if (gameRunning) return;
+
+    gameRunning = true;
+    score = 0;
+    speed = 5;
+    playerX = 150;
+
+    player.style.left = playerX + "px";
+    scoreText.innerText = "Score: 0";
+
+    gameOverScreen.style.display = "none";
+
+    enemies.forEach(e => e.remove());
+    enemies = [];
+
+    createEnemy();
+    gameLoop();
+}
+
+function createEnemy() {
+
+    if (!gameRunning) return;
+
+    const enemy = document.createElement("div");
+    enemy.classList.add("enemy");
+
+    const lanes = [40, 150, 260];
+    const randomLane =
+        lanes[Math.floor(Math.random() * lanes.length)];
+
+    enemy.style.left = randomLane + "px";
+    enemy.style.top = "-100px";
+
+    game.appendChild(enemy);
+    enemies.push(enemy);
+
+    setTimeout(
+        createEnemy,
+        Math.max(500, 1100 - score * 5)
+    );
+}
+
+function gameLoop() {
+
+    if (!gameRunning) return;
+
+    document.querySelectorAll(".line").forEach(line => {
+
+        let top = parseInt(line.style.top);
+
+        top += speed;
+
+        if (top > 600) {
+            top = -80;
+        }
+
+        line.style.top = top + "px";
+    });
+
+    enemies.forEach((enemy, index) => {
+
+        let top = parseInt(enemy.style.top);
+
+        top += speed;
+
+        enemy.style.top = top + "px";
+
+        if (isColliding(player, enemy)) {
+            endGame();
+        }
+
+        if (top > 650) {
+
+            enemy.remove();
+            enemies.splice(index, 1);
+
+            score++;
+            scoreText.innerText = "Score: " + score;
+
+            if (score % 5 === 0) {
+                speed += 0.5;
+            }
+        }
+
+    });
+
+    animation = requestAnimationFrame(gameLoop);
+}
+
+function isColliding(a, b) {
+
+    const aRect = a.getBoundingClientRect();
+    const bRect = b.getBoundingClientRect();
+
+    return !(
+        aRect.bottom < bRect.top ||
+        aRect.top > bRect.bottom ||
+        aRect.right < bRect.left ||
+        aRect.left > bRect.right
+    );
+}
+
+function moveLeft() {
+
+    if (!gameRunning) return;
+
+    playerX -= 25;
+
+    if (playerX < 5) {
+        playerX = 5;
+    }
+
+    player.style.left = playerX + "px";
+}
+
+function moveRight() {
+
+    if (!gameRunning) return;
+
+    playerX += 25;
+
+    if (playerX > 300) {
+        playerX = 300;
+    }
+
+    player.style.left = playerX + "px";
+}
+
+document.addEventListener("keydown", function(event) {
+
+    if (event.key === "ArrowLeft") {
+        moveLeft();
+    }
+
+    if (event.key === "ArrowRight") {
+        moveRight();
+    }
+
+});
+
+document.getElementById("leftBtn")
+.addEventListener("touchstart", function(e) {
+
+    e.preventDefault();
+    moveLeft();
+
+});
+
+document.getElementById("rightBtn")
+.addEventListener("touchstart", function(e) {
+
+    e.preventDefault();
+    moveRight();
+
+});
+
+document.getElementById("leftBtn")
+.addEventListener("click", moveLeft);
+
+document.getElementById("rightBtn")
+.addEventListener("click", moveRight);
+
+function endGame() {
+
+    gameRunning = false;
+
+    cancelAnimationFrame(animation);
+
+    finalScore.innerText = "Your Score: " + score;
+
+    gameOverScreen.style.display = "flex";
+}
+
+function restartGame() {
+
+    gameOverScreen.style.display = "none";
+
+    enemies.forEach(e => e.remove());
+    enemies = [];
+
+    startGame();
+}
+
+</script>
+
+</body>
+</html>
