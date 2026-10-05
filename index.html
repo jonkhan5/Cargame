@@ -8,36 +8,35 @@
 <style>
 * {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
 }
 
 body {
+    margin: 0;
     background: #111;
     font-family: Arial, sans-serif;
     text-align: center;
-    overflow: hidden;
+    color: white;
+    touch-action: manipulation;
 }
 
 h1 {
-    color: white;
     margin: 12px 0 5px;
+    font-size: 28px;
 }
 
 #score {
-    color: white;
     font-size: 22px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 #game {
     position: relative;
     width: 360px;
     height: 600px;
-    max-width: 95vw;
+    max-width: 94vw;
     margin: auto;
     overflow: hidden;
-    background: #333;
+    background: #444;
     border-left: 6px solid white;
     border-right: 6px solid white;
 }
@@ -52,26 +51,42 @@ h1 {
     transform: translateX(-50%);
 }
 
-/* Player */
-#player {
+/* Player car */
+.car {
     position: absolute;
     width: 55px;
     height: 90px;
-    bottom: 20px;
-    left: 150px;
-    background: red;
     border-radius: 12px;
+}
+
+#player {
+    background: red;
+    bottom: 20px;
+    left: 152px;
     z-index: 5;
 }
 
-#player::before {
+#player::before,
+.enemy::before {
     content: "";
     position: absolute;
     width: 35px;
-    height: 25px;
-    background: #111;
+    height: 28px;
+    background: #222;
     left: 10px;
     top: 12px;
+    border-radius: 5px;
+}
+
+#player::after,
+.enemy::after {
+    content: "";
+    position: absolute;
+    width: 35px;
+    height: 18px;
+    background: #222;
+    left: 10px;
+    bottom: 10px;
     border-radius: 5px;
 }
 
@@ -82,55 +97,54 @@ h1 {
     height: 90px;
     background: yellow;
     border-radius: 12px;
-    top: -100px;
 }
 
-/* Controls */
+/* Buttons */
 .controls {
-    margin-top: 12px;
+    margin-top: 15px;
     display: flex;
     justify-content: center;
-    gap: 30px;
+    gap: 25px;
 }
 
-button {
-    width: 100px;
-    height: 55px;
-    font-size: 25px;
-    border: none;
+.controlBtn {
+    width: 110px;
+    height: 60px;
+    font-size: 28px;
+    border: 0;
     border-radius: 12px;
     background: white;
+    color: black;
 }
 
-button:active {
-    transform: scale(0.9);
-}
-
-#startBtn {
-    margin-top: 12px;
-    width: 220px;
+#startBtn,
+#restartBtn {
+    margin-top: 15px;
+    width: 230px;
+    height: 55px;
     font-size: 20px;
+    border: 0;
+    border-radius: 12px;
 }
 
 #gameOver {
-    display: none;
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.8);
-    color: white;
-    z-index: 20;
+    background: rgba(0,0,0,0.85);
+    display: none;
     align-items: center;
     justify-content: center;
     flex-direction: column;
+    z-index: 20;
 }
 
 #gameOver h2 {
-    font-size: 38px;
-    margin-bottom: 15px;
+    font-size: 40px;
+    margin: 0 0 10px;
 }
 
-#gameOver button {
-    margin-top: 15px;
+#finalScore {
+    font-size: 22px;
 }
 </style>
 </head>
@@ -148,87 +162,104 @@ button:active {
     <div class="line" style="top:300px"></div>
     <div class="line" style="top:450px"></div>
 
-    <div id="player"></div>
+    <div id="player" class="car"></div>
 
     <div id="gameOver">
         <h2>GAME OVER</h2>
         <div id="finalScore">Score: 0</div>
-        <button onclick="restartGame()">Play Again</button>
+        <button id="restartBtn">PLAY AGAIN</button>
     </div>
 
 </div>
 
 <div class="controls">
-    <button id="leftBtn">⬅️</button>
-    <button id="rightBtn">➡️</button>
+    <button class="controlBtn" id="leftBtn">⬅️</button>
+    <button class="controlBtn" id="rightBtn">➡️</button>
 </div>
 
-<button id="startBtn" onclick="startGame()">START GAME</button>
+<button id="startBtn">START GAME</button>
 
 <script>
 
 const game = document.getElementById("game");
 const player = document.getElementById("player");
 const scoreText = document.getElementById("score");
-const gameOverScreen = document.getElementById("gameOver");
+const startBtn = document.getElementById("startBtn");
+const restartBtn = document.getElementById("restartBtn");
+const leftBtn = document.getElementById("leftBtn");
+const rightBtn = document.getElementById("rightBtn");
+const gameOver = document.getElementById("gameOver");
 const finalScore = document.getElementById("finalScore");
 
-let playerX = 150;
+let playerX = 152;
 let score = 0;
-let gameRunning = false;
 let speed = 5;
+let running = false;
+let animationFrame;
+let enemyTimer = null;
 let enemies = [];
-let animation;
+
+/* START */
+startBtn.addEventListener("click", startGame);
 
 function startGame() {
 
-    if (gameRunning) return;
+    if (running) return;
 
-    gameRunning = true;
+    clearGame();
+
+    running = true;
     score = 0;
     speed = 5;
-    playerX = 150;
+    playerX = 152;
 
     player.style.left = playerX + "px";
-    scoreText.innerText = "Score: 0";
-
-    gameOverScreen.style.display = "none";
-
-    enemies.forEach(e => e.remove());
-    enemies = [];
+    scoreText.textContent = "Score: 0";
+    gameOver.style.display = "none";
 
     createEnemy();
+
     gameLoop();
 }
 
+/* CREATE ENEMY */
 function createEnemy() {
 
-    if (!gameRunning) return;
+    if (!running) return;
 
     const enemy = document.createElement("div");
-    enemy.classList.add("enemy");
 
-    const lanes = [40, 150, 260];
-    const randomLane =
-        lanes[Math.floor(Math.random() * lanes.length)];
-
-    enemy.style.left = randomLane + "px";
+    enemy.className = "enemy";
     enemy.style.top = "-100px";
+
+    const lanes = [35, 152, 269];
+    const lane = lanes[Math.floor(Math.random() * lanes.length)];
+
+    enemy.style.left = lane + "px";
 
     game.appendChild(enemy);
     enemies.push(enemy);
 
-    setTimeout(
-        createEnemy,
-        Math.max(500, 1100 - score * 5)
-    );
+    enemyTimer = setTimeout(createEnemy, Math.max(450, 1000 - score * 8));
 }
 
+/* GAME LOOP */
 function gameLoop() {
 
-    if (!gameRunning) return;
+    if (!running) return;
 
-    document.querySelectorAll(".line").forEach(line => {
+    moveRoad();
+    moveEnemies();
+
+    animationFrame = requestAnimationFrame(gameLoop);
+}
+
+/* ROAD */
+function moveRoad() {
+
+    const lines = document.querySelectorAll(".line");
+
+    lines.forEach(line => {
 
         let top = parseInt(line.style.top);
 
@@ -240,8 +271,14 @@ function gameLoop() {
 
         line.style.top = top + "px";
     });
+}
 
-    enemies.forEach((enemy, index) => {
+/* ENEMIES */
+function moveEnemies() {
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+
+        const enemy = enemies[i];
 
         let top = parseInt(enemy.style.top);
 
@@ -249,46 +286,47 @@ function gameLoop() {
 
         enemy.style.top = top + "px";
 
-        if (isColliding(player, enemy)) {
+        if (collision(player, enemy)) {
             endGame();
+            return;
         }
 
-        if (top > 650) {
+        if (top > 620) {
 
             enemy.remove();
-            enemies.splice(index, 1);
+            enemies.splice(i, 1);
 
             score++;
-            scoreText.innerText = "Score: " + score;
+
+            scoreText.textContent = "Score: " + score;
 
             if (score % 5 === 0) {
                 speed += 0.5;
             }
         }
-
-    });
-
-    animation = requestAnimationFrame(gameLoop);
+    }
 }
 
-function isColliding(a, b) {
+/* COLLISION */
+function collision(a, b) {
 
-    const aRect = a.getBoundingClientRect();
-    const bRect = b.getBoundingClientRect();
+    const A = a.getBoundingClientRect();
+    const B = b.getBoundingClientRect();
 
     return !(
-        aRect.bottom < bRect.top ||
-        aRect.top > bRect.bottom ||
-        aRect.right < bRect.left ||
-        aRect.left > bRect.right
+        A.bottom < B.top ||
+        A.top > B.bottom ||
+        A.right < B.left ||
+        A.left > B.right
     );
 }
 
+/* MOVE LEFT */
 function moveLeft() {
 
-    if (!gameRunning) return;
+    if (!running) return;
 
-    playerX -= 25;
+    playerX -= 30;
 
     if (playerX < 5) {
         playerX = 5;
@@ -297,11 +335,12 @@ function moveLeft() {
     player.style.left = playerX + "px";
 }
 
+/* MOVE RIGHT */
 function moveRight() {
 
-    if (!gameRunning) return;
+    if (!running) return;
 
-    playerX += 25;
+    playerX += 30;
 
     if (playerX > 300) {
         playerX = 300;
@@ -310,59 +349,58 @@ function moveRight() {
     player.style.left = playerX + "px";
 }
 
-document.addEventListener("keydown", function(event) {
+/* BUTTONS */
+leftBtn.addEventListener("pointerdown", function(e) {
+    e.preventDefault();
+    moveLeft();
+});
 
-    if (event.key === "ArrowLeft") {
+rightBtn.addEventListener("pointerdown", function(e) {
+    e.preventDefault();
+    moveRight();
+});
+
+/* KEYBOARD */
+document.addEventListener("keydown", function(e) {
+
+    if (e.key === "ArrowLeft") {
         moveLeft();
     }
 
-    if (event.key === "ArrowRight") {
+    if (e.key === "ArrowRight") {
         moveRight();
     }
-
 });
 
-document.getElementById("leftBtn")
-.addEventListener("touchstart", function(e) {
-
-    e.preventDefault();
-    moveLeft();
-
-});
-
-document.getElementById("rightBtn")
-.addEventListener("touchstart", function(e) {
-
-    e.preventDefault();
-    moveRight();
-
-});
-
-document.getElementById("leftBtn")
-.addEventListener("click", moveLeft);
-
-document.getElementById("rightBtn")
-.addEventListener("click", moveRight);
-
+/* GAME OVER */
 function endGame() {
 
-    gameRunning = false;
+    running = false;
 
-    cancelAnimationFrame(animation);
+    cancelAnimationFrame(animationFrame);
+    clearTimeout(enemyTimer);
 
-    finalScore.innerText = "Your Score: " + score;
+    finalScore.textContent = "Your Score: " + score;
 
-    gameOverScreen.style.display = "flex";
+    gameOver.style.display = "flex";
 }
 
-function restartGame() {
-
-    gameOverScreen.style.display = "none";
-
-    enemies.forEach(e => e.remove());
-    enemies = [];
+/* RESTART */
+restartBtn.addEventListener("click", function() {
 
     startGame();
+
+});
+
+/* CLEAR */
+function clearGame() {
+
+    cancelAnimationFrame(animationFrame);
+    clearTimeout(enemyTimer);
+
+    enemies.forEach(enemy => enemy.remove());
+
+    enemies = [];
 }
 
 </script>
